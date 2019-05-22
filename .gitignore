@@ -2,7 +2,9 @@
 config.yaml
 
 # Binaries for programs and plugins
-matrix_irc_ping_exporter
+/cmd/matrix_irc_ping_exporter/matrix_irc_ping_exporter
+/cmd/ping_responder/ping_responder
+/cmd/ping_sender/ping_sender
 *.exe
 *.exe~
 *.dll
