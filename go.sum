@@ -1,0 +1,11 @@
+github.com/go-yaml/yaml v2.1.0+incompatible h1:RYi2hDdss1u4YE7GwixGzWwVo47T8UQwnTLB6vQiq+o=
+github.com/go-yaml/yaml v2.1.0+incompatible/go.mod h1:w2MrLa16VYP0jy6N7M5kHaCkaLENm+P+Tv+MfurjSw0=
+github.com/matrix-org/gomatrix v0.0.0-20190418155519-0c31efc5dc73 h1:6UHeDHVmtcPrbVvsMg2OVtyUj4S8KNI9mWFlQLIebGo=
+github.com/matrix-org/gomatrix v0.0.0-20190418155519-0c31efc5dc73/go.mod h1:3fxX6gUjWyI/2Bt7J1OLhpCzOfO/bB3AiX0cJtEKud0=
+github.com/thoj/go-ircevent v0.0.0-20190404145236-0b3c53b32422 h1:aSEtAT2NwC6aBwSgnbIpqykUmyM885EKsUT25CXE84E=
+github.com/thoj/go-ircevent v0.0.0-20190404145236-0b3c53b32422/go.mod h1:QYOctLs5qEsaIrA/PKEc4YqAv2SozbxNEX0vMPs84p4=
+gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/sorcix/irc.v2 v2.0.0-20190306112350-8d7a73540b90 h1:ItuFAq9SlPhZvdIvsdgoE38i9aLLdDpBbFV9vTJhlp8=
+gopkg.in/sorcix/irc.v2 v2.0.0-20190306112350-8d7a73540b90/go.mod h1:PmJkUcwbuPi1FiZ9Rarr6wzVMvzkO7uWqH1jwrMkgW0=
+gopkg.in/yaml.v2 v2.2.2 h1:ZCJp+EgiOT7lHqUV2J862kp8Qj64Jo6az82+3Td9dZw=
+gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=

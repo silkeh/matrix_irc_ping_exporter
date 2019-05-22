@@ -1,0 +1,14 @@
+matrix:
+  homeserver: "https://matrix.org"
+  user: "@???:matrix.org"
+  token: <secret>
+
+irc:
+  ircnet:
+    server: localhost:6667
+    nick: PingBot
+    user: PingBot
+    ssl: false
+    channels:
+      - "#test"
+
