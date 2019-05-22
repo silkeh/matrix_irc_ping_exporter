@@ -16,27 +16,36 @@ type Client struct {
 	Channels []string
 }
 
+// Config is the configuration for a Client.
+type Config struct {
+	Server   string
+	Nick     string
+	Name     string
+	SSL      bool
+	Channels []string
+}
+
 // NewClient creates and connects a simple IRC pong client
-func NewClient(server, nick, name string, ssl bool, channels []string) (c *Client, err error) {
+func NewClient(config *Config) (c *Client, err error) {
 	c = &Client{
-		Channels:   channels,
-		Connection: irc.IRC(nick, name),
+		Channels:   config.Channels,
+		Connection: irc.IRC(config.Nick, config.Name),
 	}
 
 	// Catch invalid config
 	if c.Connection == nil {
-		return nil, fmt.Errorf("invalid IRC name or realname: %q, %q", nick, name)
+		return nil, fmt.Errorf("invalid IRC name or realname: %q, %q", config.Nick, config.Name)
 	}
 
 	// Configure the client
-	c.UseTLS = ssl
+	c.UseTLS = config.SSL
 
 	// Register callbacks
 	c.AddCallback(irclib.RPL_WELCOME, c.onConnect)
 	c.AddCallback(irclib.PRIVMSG, c.onPrivMsg)
 
 	// Connect
-	err = c.Connect(server)
+	err = c.Connect(config.Server)
 	if err != nil {
 		return
 	}

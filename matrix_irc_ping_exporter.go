@@ -38,7 +38,7 @@ func main() {
 
 	// Create IRC clients
 	for n, conf := range config.IRC {
-		ircClients[n], err = irc.NewClient(conf.Server, conf.Nick, conf.Name, conf.SSL, conf.Channels)
+		ircClients[n], err = irc.NewClient(conf)
 		if err != nil {
 			log.Fatalf("Error connecting to IRC server %s: %s", conf.Server, err)
 		}

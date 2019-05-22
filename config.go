@@ -1,24 +1,16 @@
 package main
 
 import (
-	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 	"io/ioutil"
 
+	"github.com/silkeh/matrix_irc_ping_exporter/irc"
+	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 	"gopkg.in/yaml.v2"
 )
 
-// IRCConfig is used for the configuration of the IRC clients
-type IRCConfig struct {
-	Server   string
-	Nick     string
-	Name     string
-	SSL      bool
-	Channels []string
-}
-
 // Config is used for the main configuration
 type Config struct {
-	IRC    map[string]*IRCConfig
+	IRC    map[string]*irc.Config
 	Matrix *matrix.Config
 }
 
