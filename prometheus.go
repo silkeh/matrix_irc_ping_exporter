@@ -6,23 +6,42 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 )
 
 const timeout = 30 * time.Second
 
-func (client *MatrixClient) metricsHandler(w http.ResponseWriter, r *http.Request) {
+// Exporter is a Prometheus exporter for Matrix-IRC ping metrics.
+type Exporter struct {
+	*matrix.Client
+	Rooms   map[string]string
+	Timeout time.Duration
+}
+
+// NewExporter returns a configured ping metrics exporter..
+func NewExporter(client *matrix.Client, rooms map[string]string, timeout time.Duration) *Exporter {
+	return &Exporter{
+		Client:  client,
+		Rooms:   rooms,
+		Timeout: timeout,
+	}
+}
+
+// MetricsHandler is an HTTP handler that collects metrics.
+func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO: clear receiver channel
 
 	// Send ping to all rooms
-	for id := range client.rooms {
-		_, err := client.SendText(id, fmt.Sprintf("ping %d", time.Now().UnixNano()))
+	for _, id := range e.Rooms {
+		_, err := e.SendText(id, fmt.Sprintf("ping %d", time.Now().UnixNano()))
 		if err != nil {
 			log.Printf("Error sending ping to room %s: %s", id, err)
 		}
 	}
 
-	// Read all responses
-	delays := client.getDelays()
+	// Read all delays
+	delays := e.getDelays()
 
 	// Write metrics
 	// TODO: use proper exporter functionality for this
@@ -37,24 +56,25 @@ func (client *MatrixClient) metricsHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (client *MatrixClient) getDelays() (delays map[string]Delay) {
+// getDelays returns the sent delays.
+func (e *Exporter) getDelays() (delays map[string]matrix.Delay) {
 	// Initialise delays with timeout values
-	delays = make(map[string]Delay, len(client.rooms))
-	for _, n := range client.rooms {
-		delays[n] = Delay{Room: n, Ping: timeout, Pong: timeout}
+	delays = make(map[string]matrix.Delay, len(e.Rooms))
+	for n := range e.Rooms {
+		delays[n] = matrix.Delay{Room: n, Ping: timeout, Pong: timeout}
 	}
 
 	// Run the rest with a timeout
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), e.Timeout)
 	defer cancel()
 
 	// Check for incoming messages and return when done,
 	// or when the timeout is reached.
 	for {
 		select {
-		case delay := <-client.responses:
+		case delay := <-e.Delays:
 			delays[delay.Room] = delay
-			if len(delays) == len(client.rooms) {
+			if len(delays) == len(e.Rooms) {
 				return
 			}
 		case <-ctx.Done():

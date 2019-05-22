@@ -1,19 +1,11 @@
 package main
 
 import (
+	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 	"io/ioutil"
 
 	"gopkg.in/yaml.v2"
 )
-
-// MatrixConfig is used for the configuration of the Matrix client
-type MatrixConfig struct {
-	Homeserver  string
-	User        string
-	Token       string
-	MessageType string
-	Rooms       map[string]string
-}
 
 // IRCConfig is used for the configuration of the IRC clients
 type IRCConfig struct {
@@ -27,7 +19,7 @@ type IRCConfig struct {
 // Config is used for the main configuration
 type Config struct {
 	IRC    map[string]*IRCConfig
-	Matrix *MatrixConfig
+	Matrix *matrix.Config
 }
 
 // loadConfig loads configuration

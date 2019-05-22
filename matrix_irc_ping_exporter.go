@@ -4,23 +4,11 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
+	"time"
 
 	"github.com/silkeh/matrix_irc_ping_exporter/irc"
+	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 )
-
-func setBoolFromEnv(target *bool, env string) {
-	if str := os.Getenv(env); str != "" {
-		*target, _ = strconv.ParseBool(str)
-	}
-}
-
-func setStringFromEnv(target *string, env string) {
-	if str := os.Getenv(env); str != "" {
-		*target = str
-	}
-}
 
 var (
 	ircClients = make(map[string]*irc.Client)
@@ -28,9 +16,11 @@ var (
 
 func main() {
 	var addr, configFile string
+	var pingTimeout time.Duration
 
 	flag.StringVar(&addr, "addr", ":9200", "Listen address")
 	flag.StringVar(&configFile, "config", "config.yaml", "Configuration file")
+	flag.DurationVar(&pingTimeout, "timeout", 30*time.Second, "Ping timeout")
 	flag.Parse()
 
 	// Load configuration
@@ -39,11 +29,12 @@ func main() {
 		log.Fatalf("Error loading config file %s: %s", configFile, err)
 	}
 
-	// Create and start aatrix client
-	client, err := NewMatrixClient(config.Matrix)
+	// Create and start a Matrix client
+	client, err := matrix.NewClient(config.Matrix)
 	if err != nil {
 		log.Fatalf("Error connecting to Matrix homeserver: %s", err)
 	}
+	go client.Sync()
 
 	// Create IRC clients
 	for n, conf := range config.IRC {
@@ -54,7 +45,10 @@ func main() {
 		go ircClients[n].Loop()
 	}
 
+	// Create exporter
+	exporter := NewExporter(client, config.Matrix.Rooms, pingTimeout)
+
 	// Create HTTP server
-	http.HandleFunc("/metrics", client.metricsHandler)
+	http.HandleFunc("/metrics", exporter.MetricsHandler)
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
