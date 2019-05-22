@@ -8,6 +8,7 @@ import (
 
 	"github.com/silkeh/matrix_irc_ping_exporter/irc"
 	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
+	"github.com/silkeh/matrix_irc_ping_exporter/prometheus"
 )
 
 var (
@@ -46,7 +47,7 @@ func main() {
 	}
 
 	// Create exporter
-	exporter := NewExporter(client, config.Matrix.Rooms, pingTimeout)
+	exporter := prometheus.NewExporter(client, config.Matrix.Rooms, pingTimeout)
 
 	// Create HTTP server
 	http.HandleFunc("/metrics", exporter.MetricsHandler)
