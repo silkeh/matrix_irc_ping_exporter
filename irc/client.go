@@ -10,6 +10,14 @@ import (
 	irclib "gopkg.in/sorcix/irc.v2"
 )
 
+const (
+	// PingMessage contains the prefix for a ping message
+	PingMessage = "ping"
+
+	// PingResponse contains the expected response prefix to a ping message
+	PingResponse = "pong"
+)
+
 // Client is a simple IRC pong client
 type Client struct {
 	*irc.Connection
@@ -72,7 +80,7 @@ func (c *Client) onPrivMsg(e *irc.Event) {
 	}
 
 	msg := strings.TrimSpace(e.Message())
-	if strings.HasPrefix(msg, "ping") {
+	if strings.HasPrefix(msg, PingMessage) {
 		c.Privmsg(channel, createResponse(msg))
 	}
 }
@@ -80,18 +88,24 @@ func (c *Client) onPrivMsg(e *irc.Event) {
 // createResponse creates the correct response for an incoming ping message.
 func createResponse(msg string) string {
 	now := time.Now()
-	str := fmt.Sprintf("pong %v", now.UnixNano())
+	id := "unixnano"
+	suffix := ""
+	parts := strings.Split(msg, " ")
+
+	// Check if a ping ID was given, if so: use it.
+	if len(parts) >= 2 {
+		id = parts[1]
+	}
 
 	// Check if a timestamp was given, and calculate the difference.
 	// This difference is appended to the return message.
-	parts := strings.Split(msg, " ")
-	if len(parts) >= 2 {
-		ts, err := strconv.ParseInt(parts[1], 0, 64)
+	if len(parts) >= 3 {
+		ts, err := strconv.ParseInt(parts[2], 0, 64)
 		if err == nil {
 			diff := now.Sub(time.Unix(0, ts))
-			str += fmt.Sprintf(" %d %s", diff, diff)
+			suffix = fmt.Sprintf("%d %s", diff, diff)
 		}
 	}
 
-	return str
+	return fmt.Sprintf("%s %s %v %s", PingResponse, id, now.UnixNano(), suffix)
 }

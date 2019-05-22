@@ -35,7 +35,7 @@ type Config struct {
 
 // Delay represents a delay for a room.
 type Delay struct {
-	Room       string
+	Room, ID   string
 	Ping, Pong time.Duration
 }
 
@@ -82,8 +82,8 @@ func NewClient(config *Config) (c *Client, err error) {
 }
 
 // SendPing sends a ping message
-func (c *Client) SendPing(roomID string) (*matrix.RespSendEvent, error) {
-	return c.SendText(roomID, fmt.Sprintf("ping %d", time.Now().UnixNano()))
+func (c *Client) SendPing(roomID, pingID string) (*matrix.RespSendEvent, error) {
+	return c.SendText(roomID, fmt.Sprintf("%s %s %d", PingMessage, pingID, time.Now().UnixNano()))
 }
 
 // SendText sends a plain text message

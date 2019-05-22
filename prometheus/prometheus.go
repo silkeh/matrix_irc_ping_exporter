@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
@@ -34,7 +36,7 @@ func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Send ping to all rooms
 	for _, id := range e.Rooms {
-		_, err := e.SendPing(id)
+		_, err := e.SendPing(id, strconv.Itoa(rand.Int()))
 		if err != nil {
 			log.Printf("Error sending ping to room %s: %s", id, err)
 		}

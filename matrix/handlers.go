@@ -25,19 +25,19 @@ func (c *Client) messageHandler(e *matrix.Event) {
 
 	// Ignore message if not all components are available
 	parts := strings.Split(text, " ")
-	if len(parts) < 3 {
+	if len(parts) <= 4  {
 		return
 	}
 
 	// Parse timestamp
-	ts, err := strconv.ParseInt(parts[1], 0, 64)
+	ts, err := strconv.ParseInt(parts[2], 0, 64)
 	if err != nil {
 		log.Printf("Received pong with invalid time: %s", text)
 		return
 	}
 
 	// Parse initial delay
-	lag, err := strconv.ParseInt(parts[2], 0, 64)
+	lag, err := strconv.ParseInt(parts[3], 0, 64)
 	if err != nil {
 		log.Printf("Received pong with invalid delay: %s", text)
 		return
@@ -46,6 +46,7 @@ func (c *Client) messageHandler(e *matrix.Event) {
 	// Queue response
 	c.Delays <- Delay{
 		Room: room,
+		ID: parts[1],
 		Ping: time.Duration(lag),
 		Pong: time.Since(time.Unix(0, ts)),
 	}
