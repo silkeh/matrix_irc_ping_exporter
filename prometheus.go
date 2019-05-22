@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const timeout = 60 * time.Second
+const timeout = 30 * time.Second
 
 func (client *MatrixClient) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO: clear receiver channel
@@ -27,7 +27,11 @@ func (client *MatrixClient) metricsHandler(w http.ResponseWriter, r *http.Reques
 	// Write metrics
 	// TODO: use proper exporter functionality for this
 	for _, d := range delays {
-		fmt.Fprintf(w, "matrix_irc_ping_timeout{network=\"%s\"} %v\n", d.Room, 0)
+		pingTimeout := 0
+		if d.Ping == timeout || d.Pong == timeout {
+			pingTimeout = 1
+		}
+		fmt.Fprintf(w, "matrix_irc_ping_timeout{network=\"%s\"} %v\n", d.Room, pingTimeout)
 		fmt.Fprintf(w, "matrix_irc_ping_delay_seconds{network=\"%s\"} %v\n", d.Room, float64(d.Ping)/1e9)
 		fmt.Fprintf(w, "matrix_irc_pong_delay_seconds{network=\"%s\"} %v\n", d.Room, float64(d.Pong)/1e9)
 	}
