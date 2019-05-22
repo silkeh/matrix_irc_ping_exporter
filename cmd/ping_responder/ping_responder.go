@@ -2,9 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/silkeh/matrix_irc_ping_exporter/irc"
 	"log"
 	"strings"
+
+	"github.com/silkeh/matrix_irc_ping_exporter/irc"
 )
 
 func main() {

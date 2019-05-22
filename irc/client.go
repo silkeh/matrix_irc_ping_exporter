@@ -51,6 +51,7 @@ func NewClient(config *Config) (c *Client, err error) {
 	// Register callbacks
 	c.AddCallback(irclib.RPL_WELCOME, c.onConnect)
 	c.AddCallback(irclib.PRIVMSG, c.onPrivMsg)
+	c.AddCallback(irclib.NOTICE, c.onPrivMsg)
 
 	// Connect
 	err = c.Connect(config.Server)
