@@ -1,6 +1,7 @@
 package matrix
 
 import (
+	"fmt"
 	"time"
 
 	matrix "github.com/matrix-org/gomatrix"
@@ -78,6 +79,11 @@ func NewClient(config *Config) (c *Client, err error) {
 	}
 
 	return
+}
+
+// SendPing sends a ping message
+func (c *Client) SendPing(roomID string) (*matrix.RespSendEvent, error) {
+	return c.SendText(roomID, fmt.Sprintf("ping %d", time.Now().UnixNano()))
 }
 
 // SendText sends a plain text message

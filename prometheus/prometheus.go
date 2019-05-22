@@ -34,7 +34,7 @@ func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Send ping to all rooms
 	for _, id := range e.Rooms {
-		_, err := e.SendText(id, fmt.Sprintf("ping %d", time.Now().UnixNano()))
+		_, err := e.SendPing(id)
 		if err != nil {
 			log.Printf("Error sending ping to room %s: %s", id, err)
 		}
