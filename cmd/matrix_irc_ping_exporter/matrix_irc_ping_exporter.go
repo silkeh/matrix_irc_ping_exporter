@@ -22,7 +22,7 @@ func main() {
 	flag.StringVar(&addr, "addr", ":9200", "Listen address")
 	flag.StringVar(&configFile, "config", "config.yaml", "Configuration file")
 	flag.StringVar(&logLevel, "loglevel", "info", "Log level")
-	flag.DurationVar(&pingTimeout, "timeout", 30*time.Second, "Ping timeout")
+	flag.DurationVar(&pingTimeout, "timeout", 60*time.Second, "Ping timeout")
 	flag.Parse()
 
 	// Set log level
