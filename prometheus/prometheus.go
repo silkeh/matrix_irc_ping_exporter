@@ -4,15 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
+	"github.com/silkeh/matrix_irc_ping_exporter/util"
 )
 
-const timeout = 30 * time.Second
+const idSize = 8
 
 // Exporter is a Prometheus exporter for Matrix-IRC ping metrics.
 type Exporter struct {
@@ -32,38 +31,48 @@ func NewExporter(client *matrix.Client, rooms map[string]string, timeout time.Du
 
 // MetricsHandler is an HTTP handler that collects metrics.
 func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: clear receiver channel
-
 	// Send ping to all rooms
+	ids := e.sendPings()
+
+	// Read all delays
+	delays := e.getDelays(ids)
+
+	// Write metrics
+	// TODO: use proper exporter functionality for this
+	for n, d := range delays {
+		success := 0
+		if d != nil {
+			success = 1
+			fmt.Fprintf(w, "matrix_irc_ping_delay_seconds{network=\"%s\"} %v\n", d.Room, float64(d.Ping)/1e9)
+			fmt.Fprintf(w, "matrix_irc_pong_delay_seconds{network=\"%s\"} %v\n", d.Room, float64(d.Pong)/1e9)
+		}
+		fmt.Fprintf(w, "matrix_irc_ping_success{network=\"%s\"} %v\n", n, success)
+	}
+}
+
+// sendPings sends pings to all configured rooms and returns a map with ping IDs
+func (e *Exporter) sendPings() (ids map[string]struct{}) {
+	ids = make(map[string]struct{}, len(e.Rooms))
 	for _, id := range e.Rooms {
-		_, err := e.SendPing(id, strconv.Itoa(rand.Int()))
+		// Create random ID and register it
+		pid := util.RandString(idSize)
+		ids[pid] = struct{}{}
+
+		// Try to send a ping message
+		_, err := e.SendPing(id, pid)
 		if err != nil {
 			log.Printf("Error sending ping to room %s: %s", id, err)
 		}
 	}
-
-	// Read all delays
-	delays := e.getDelays()
-
-	// Write metrics
-	// TODO: use proper exporter functionality for this
-	for _, d := range delays {
-		pingTimeout := 0
-		if d.Ping == timeout || d.Pong == timeout {
-			pingTimeout = 1
-		}
-		fmt.Fprintf(w, "matrix_irc_ping_timeout{network=\"%s\"} %v\n", d.Room, pingTimeout)
-		fmt.Fprintf(w, "matrix_irc_ping_delay_seconds{network=\"%s\"} %v\n", d.Room, float64(d.Ping)/1e9)
-		fmt.Fprintf(w, "matrix_irc_pong_delay_seconds{network=\"%s\"} %v\n", d.Room, float64(d.Pong)/1e9)
-	}
+	return
 }
 
 // getDelays returns the sent delays.
-func (e *Exporter) getDelays() (delays map[string]matrix.Delay) {
-	// Initialise delays with timeout values
-	delays = make(map[string]matrix.Delay, len(e.Rooms))
+func (e *Exporter) getDelays(ids map[string]struct{}) (delays map[string]*matrix.Delay) {
+	// Initialise delays map with nil pointers
+	delays = make(map[string]*matrix.Delay, len(e.Rooms))
 	for n := range e.Rooms {
-		delays[n] = matrix.Delay{Room: n, Ping: timeout, Pong: timeout}
+		delays[n] = nil
 	}
 
 	// Run the rest with a timeout
@@ -75,7 +84,15 @@ func (e *Exporter) getDelays() (delays map[string]matrix.Delay) {
 	for {
 		select {
 		case delay := <-e.Delays:
-			delays[delay.Room] = delay
+			// Check if this is a ping we sent
+			if _, ok := ids[delay.ID]; !ok {
+				continue
+			}
+
+			// Save received delay
+			delays[delay.Room] = &delay
+
+			// Stop when everything has been received
 			if len(delays) == len(e.Rooms) {
 				return
 			}
