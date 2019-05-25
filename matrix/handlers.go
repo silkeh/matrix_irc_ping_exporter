@@ -1,6 +1,7 @@
 package matrix
 
 import (
+	"github.com/silkeh/matrix_irc_ping_exporter/ping"
 	"strconv"
 	"strings"
 	"time"
@@ -19,36 +20,52 @@ func (c *Client) messageHandler(e *matrix.Event) {
 		return
 	}
 
-	// Ignore message if the body does not start with the right response
-	text, ok := e.Body()
-	if !ok || !strings.HasPrefix(text, PingResponse) {
+	// Parse message
+	msg := c.parseMessage(e)
+	if msg == nil {
 		return
+	}
+
+	// Complete message
+	msg.Room = room
+	msg.Received = now
+	log.Debugf("Received %s message with ID %q from %q", msg.Kind, msg.ID, e.RoomID)
+
+	switch {
+	case msg.Kind == PingMessage:
+		c.Pings <- msg
+	case msg.Kind == PingResponse:
+		c.Pongs <- msg
+	}
+}
+
+func (c *Client) parseMessage(e *matrix.Event) *ping.Message {
+	// Ignore message if it has no body
+	text, ok := e.Body()
+	if !ok {
+		return nil
 	}
 
 	// Ignore message if not all components are available
 	parts := strings.Split(text, " ")
-	if len(parts) <= 4  {
-		return
+	if len(parts) < 3 {
+		return nil
 	}
 
 	// Parse timestamp
 	ts, err := strconv.ParseInt(parts[2], 0, 64)
 	if err != nil {
 		log.Infof("Received pong with invalid time: %s", text)
-		return
+		return nil
 	}
 
-	// Queue response
-	log.Debugf("Received pong with ID %q from %q", parts[1], e.RoomID)
-	c.Delays <- Delay{
-		Room: room,
-		ID: parts[1],
-		PongTime: time.Unix(0, ts),
-		MatrixTime: time.Unix(0, e.Timestamp * 1e6),
-		ReceiveTime: now,
+	// Assemble message
+	return &ping.Message{
+		Kind:   parts[0],
+		ID:     parts[1],
+		Sent:   time.Unix(0, ts),
+		Matrix: time.Unix(0, e.Timestamp*1e6),
 	}
-
-	return
 }
 
 // Sync runs a never ending Matrix sync

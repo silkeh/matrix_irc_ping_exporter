@@ -2,6 +2,7 @@ package matrix
 
 import (
 	"fmt"
+	"github.com/silkeh/matrix_irc_ping_exporter/ping"
 	"time"
 
 	matrix "github.com/matrix-org/gomatrix"
@@ -19,10 +20,10 @@ const (
 // Client represents a Matrix Client that can be used as a ping sender.
 type Client struct {
 	*matrix.Client
-	Syncer      *matrix.DefaultSyncer
-	Rooms       map[string]string
-	Delays      chan Delay
-	messageType string
+	Syncer       *matrix.DefaultSyncer
+	Rooms        map[string]string
+	Pings, Pongs chan *ping.Message
+	messageType  string
 }
 
 // Config is used for the configuration of the Matrix client
@@ -45,7 +46,8 @@ func NewClient(config *Config) (c *Client, err error) {
 	c = &Client{
 		messageType: config.MessageType,
 		Rooms:       make(map[string]string, len(config.Rooms)),
-		Delays:      make(chan Delay, 25),
+		Pings:       make(chan *ping.Message, 25),
+		Pongs:       make(chan *ping.Message, 25),
 	}
 
 	// Add Rooms to map with id/name swapped
