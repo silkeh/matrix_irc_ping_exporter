@@ -43,34 +43,38 @@ func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 		success := 0
 		if d != nil {
 			success = 1
-			fmt.Fprintf(w, "matrix_irc_ping_delay_seconds{network=\"%s\"} %v\n", d.Room, float64(d.Ping)/1e9)
-			fmt.Fprintf(w, "matrix_irc_pong_delay_seconds{network=\"%s\"} %v\n", d.Room, float64(d.Pong)/1e9)
+			fmt.Fprintf(w, "matrix_irc_ping_seconds{network=\"%s\"} %v\n", d.Room, d.Ping().Seconds())
+			fmt.Fprintf(w, "matrix_irc_pong_seconds{network=\"%s\"} %v\n", d.Room, d.Pong().Seconds())
+			fmt.Fprintf(w, "matrix_irc_rtt_seconds{network=\"%s\"} %v\n", d.Room, d.RTT().Seconds())
+			fmt.Fprintf(w, "matrix_irc_pong_irc_seconds{network=\"%s\"} %v\n", d.Room, d.IRCPong().Seconds())
+			fmt.Fprintf(w, "matrix_irc_pong_matrix_seconds{network=\"%s\"} %v\n", d.Room, d.MatrixPong().Seconds())
 		}
 		fmt.Fprintf(w, "matrix_irc_ping_success{network=\"%s\"} %v\n", n, success)
 	}
 }
 
 // sendPings sends pings to all configured rooms and returns a map with ping IDs
-func (e *Exporter) sendPings() (ids map[string]struct{}) {
+func (e *Exporter) sendPings() (ids map[string]time.Time) {
 	log.Infof("Sending %v pings", len(e.Rooms))
 
-	ids = make(map[string]struct{}, len(e.Rooms))
-	for _, id := range e.Rooms {
+	ids = make(map[string]time.Time, len(e.Rooms))
+	for _, roomID := range e.Rooms {
 		// Create random ID and register it
-		pid := util.RandString(idSize)
-		ids[pid] = struct{}{}
+		id := util.RandString(idSize)
+		ts := time.Now()
+		ids[id] = ts
 
 		// Try to send a ping message
-		_, err := e.SendPing(id, pid)
+		_, err := e.SendPing(roomID, id, ts)
 		if err != nil {
-			log.Warnf("Error sending ping to room %s: %s", id, err)
+			log.Warnf("Error sending ping to room %s: %s", roomID, err)
 		}
 	}
 	return
 }
 
 // getDelays returns the sent delays.
-func (e *Exporter) getDelays(ids map[string]struct{}) (delays map[string]*matrix.Delay) {
+func (e *Exporter) getDelays(ids map[string]time.Time) (delays map[string]*matrix.Delay) {
 	log.Debugf("Waiting for replies, timeout in %v", e.Timeout)
 
 	// Initialise delays map with nil pointers
@@ -89,12 +93,15 @@ func (e *Exporter) getDelays(ids map[string]struct{}) (delays map[string]*matrix
 		select {
 		case delay := <-e.Delays:
 			// Check if this is a ping we sent
-			if _, ok := ids[delay.ID]; !ok {
+			ts, ok := ids[delay.ID]
+			if !ok {
 				continue
 			}
 
 			// Save received delay
+			delay.PingTime = ts
 			delays[delay.Room] = &delay
+			log.Debugf("Received response in %s with RTT of %s", delay.Room, delay.RTT())
 
 			// Stop when everything has been received
 			if len(delays) == len(e.Rooms) {

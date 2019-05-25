@@ -34,12 +34,6 @@ type Config struct {
 	Rooms       map[string]string
 }
 
-// Delay represents a delay for a room.
-type Delay struct {
-	Room, ID   string
-	Ping, Pong time.Duration
-}
-
 // Message represents a Matrix Message
 type Message struct {
 	MsgType string `json:"msgtype"`
@@ -83,10 +77,10 @@ func NewClient(config *Config) (c *Client, err error) {
 }
 
 // SendPing sends a ping message
-func (c *Client) SendPing(roomID, pingID string) (*matrix.RespSendEvent, error) {
+func (c *Client) SendPing(roomID, pingID string, ts time.Time) (*matrix.RespSendEvent, error) {
 	log.Debugf("Sending ping with ID %q to %q", pingID, roomID)
 
-	return c.SendText(roomID, fmt.Sprintf("%s %s %d", PingMessage, pingID, time.Now().UnixNano()))
+	return c.SendText(roomID, fmt.Sprintf("%s %s %d", PingMessage, pingID, ts.UnixNano()))
 }
 
 // SendText sends a plain text message

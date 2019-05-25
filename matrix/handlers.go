@@ -11,6 +11,8 @@ import (
 
 // MessageHandler handles incoming ping responses
 func (c *Client) messageHandler(e *matrix.Event) {
+	now := time.Now()
+
 	// Ignore message if not received in the configured Rooms
 	room, ok := c.Rooms[e.RoomID]
 	if !ok {
@@ -36,20 +38,14 @@ func (c *Client) messageHandler(e *matrix.Event) {
 		return
 	}
 
-	// Parse initial delay
-	lag, err := strconv.ParseInt(parts[3], 0, 64)
-	if err != nil {
-		log.Infof("Received pong with invalid delay: %s", text)
-		return
-	}
-
 	// Queue response
 	log.Debugf("Received pong with ID %q from %q", parts[1], e.RoomID)
 	c.Delays <- Delay{
 		Room: room,
 		ID: parts[1],
-		Ping: time.Duration(lag),
-		Pong: time.Since(time.Unix(0, ts)),
+		PongTime: time.Unix(0, ts),
+		MatrixTime: time.Unix(0, e.Timestamp * 1e6),
+		ReceiveTime: now,
 	}
 
 	return
