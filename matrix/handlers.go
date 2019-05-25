@@ -1,12 +1,12 @@
 package matrix
 
 import (
-	"log"
 	"strconv"
 	"strings"
 	"time"
 
 	matrix "github.com/matrix-org/gomatrix"
+	log "github.com/sirupsen/logrus"
 )
 
 // MessageHandler handles incoming ping responses
@@ -32,18 +32,19 @@ func (c *Client) messageHandler(e *matrix.Event) {
 	// Parse timestamp
 	ts, err := strconv.ParseInt(parts[2], 0, 64)
 	if err != nil {
-		log.Printf("Received pong with invalid time: %s", text)
+		log.Infof("Received pong with invalid time: %s", text)
 		return
 	}
 
 	// Parse initial delay
 	lag, err := strconv.ParseInt(parts[3], 0, 64)
 	if err != nil {
-		log.Printf("Received pong with invalid delay: %s", text)
+		log.Infof("Received pong with invalid delay: %s", text)
 		return
 	}
 
 	// Queue response
+	log.Debugf("Received pong with ID %q from %q", parts[1], e.RoomID)
 	c.Delays <- Delay{
 		Room: room,
 		ID: parts[1],
@@ -59,7 +60,7 @@ func (c *Client) Sync() {
 	for {
 		err := c.Client.Sync()
 		if err != nil {
-			log.Printf("Sync error: %s", err)
+			log.Errorf("Sync error: %s", err)
 		}
 	}
 }

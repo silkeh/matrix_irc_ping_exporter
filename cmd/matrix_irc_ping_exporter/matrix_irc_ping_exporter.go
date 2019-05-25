@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/silkeh/matrix_irc_ping_exporter/irc"
 	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 	"github.com/silkeh/matrix_irc_ping_exporter/prometheus"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -16,13 +16,21 @@ var (
 )
 
 func main() {
-	var addr, configFile string
+	var addr, configFile, logLevel string
 	var pingTimeout time.Duration
 
 	flag.StringVar(&addr, "addr", ":9200", "Listen address")
 	flag.StringVar(&configFile, "config", "config.yaml", "Configuration file")
+	flag.StringVar(&logLevel, "loglevel", "info", "Log level")
 	flag.DurationVar(&pingTimeout, "timeout", 30*time.Second, "Ping timeout")
 	flag.Parse()
+
+	// Set log level
+	lvl, err := log.ParseLevel(logLevel)
+	if err != nil {
+		log.Fatalf("Invalid loglevel %q: %s", logLevel, lvl)
+	}
+	log.SetLevel(lvl)
 
 	// Load configuration
 	config, err := loadConfig(configFile)

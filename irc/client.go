@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	irc "github.com/thoj/go-ircevent"
 	irclib "gopkg.in/sorcix/irc.v2"
 )
@@ -64,6 +65,7 @@ func NewClient(config *Config) (c *Client, err error) {
 
 // onConnect handles what should happen after a connection has been established
 func (c *Client) onConnect(e *irc.Event) {
+	log.Infof("Connected to %s", c.Server)
 	for _, ch := range c.Channels {
 		c.Join(ch)
 	}
@@ -82,7 +84,17 @@ func (c *Client) onPrivMsg(e *irc.Event) {
 
 	msg := strings.TrimSpace(e.Message())
 	if strings.HasPrefix(msg, PingMessage) {
-		c.Privmsg(channel, createResponse(msg))
+		log.Infof("Received ping message from %s: %s", channel, msg)
+
+		resp := createResponse(msg)
+		log.Infof("Sending ping reply to %s: %s", channel, resp)
+
+		switch e.Code {
+		case irclib.NOTICE:
+			c.Notice(channel, resp)
+		default:
+			c.Privmsg(channel, resp)
+		}
 	}
 }
 

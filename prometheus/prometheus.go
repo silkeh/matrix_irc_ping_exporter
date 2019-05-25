@@ -3,12 +3,12 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 	"github.com/silkeh/matrix_irc_ping_exporter/util"
+	log "github.com/sirupsen/logrus"
 )
 
 const idSize = 8
@@ -52,6 +52,8 @@ func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 // sendPings sends pings to all configured rooms and returns a map with ping IDs
 func (e *Exporter) sendPings() (ids map[string]struct{}) {
+	log.Infof("Sending %v pings", len(e.Rooms))
+
 	ids = make(map[string]struct{}, len(e.Rooms))
 	for _, id := range e.Rooms {
 		// Create random ID and register it
@@ -61,7 +63,7 @@ func (e *Exporter) sendPings() (ids map[string]struct{}) {
 		// Try to send a ping message
 		_, err := e.SendPing(id, pid)
 		if err != nil {
-			log.Printf("Error sending ping to room %s: %s", id, err)
+			log.Warnf("Error sending ping to room %s: %s", id, err)
 		}
 	}
 	return
@@ -69,6 +71,8 @@ func (e *Exporter) sendPings() (ids map[string]struct{}) {
 
 // getDelays returns the sent delays.
 func (e *Exporter) getDelays(ids map[string]struct{}) (delays map[string]*matrix.Delay) {
+	log.Debugf("Waiting for replies, timeout in %v", e.Timeout)
+
 	// Initialise delays map with nil pointers
 	delays = make(map[string]*matrix.Delay, len(e.Rooms))
 	for n := range e.Rooms {
@@ -97,6 +101,7 @@ func (e *Exporter) getDelays(ids map[string]struct{}) (delays map[string]*matrix
 				return
 			}
 		case <-ctx.Done():
+			log.Info("Timed out waiting for replies.")
 			return
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	matrix "github.com/matrix-org/gomatrix"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -83,6 +84,8 @@ func NewClient(config *Config) (c *Client, err error) {
 
 // SendPing sends a ping message
 func (c *Client) SendPing(roomID, pingID string) (*matrix.RespSendEvent, error) {
+	log.Debugf("Sending ping with ID %q to %q", pingID, roomID)
+
 	return c.SendText(roomID, fmt.Sprintf("%s %s %d", PingMessage, pingID, time.Now().UnixNano()))
 }
 
