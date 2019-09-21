@@ -1,8 +1,14 @@
+# Matrix configuration
+# If you only want an IRC ping bot, check out the `ping_responder` command.
 matrix:
   homeserver: "https://matrix.org"
   user: "@???:matrix.org"
   token: <secret>
+  rooms:
+    example: "!xxx:example.com"
 
+# IRC configuration
+# This can be left out to disable IRC functionality.
 irc:
   ircnet:
     server: localhost:6667

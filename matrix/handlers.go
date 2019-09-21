@@ -10,43 +10,53 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// MessageHandler handles incoming ping responses
+// messageHandler handles incoming messages
 func (c *Client) messageHandler(e *matrix.Event) {
 	now := time.Now()
 
-	// Ignore message if not received in the configured Rooms
-	room, ok := c.Rooms[e.RoomID]
+	// Ignore message if it has no body
+	body, ok := e.Body()
 	if !ok {
+		log.Debugf("Ignoring message %q without body from %q", e.ID, e.RoomID)
 		return
 	}
 
-	// Parse message
-	msg := c.parseMessage(e)
-	if msg == nil {
-		return
+	// Get command from body
+	cmd := strings.SplitN(body, " ", 2)[0]
+
+	log.Debugf("Received %q message from %q", cmd, e.RoomID)
+
+	var err error
+	switch cmd {
+	case PingMessage, PingResponse:
+		msg := c.parseMessage(e, now)
+		switch {
+		case msg == nil:
+			// ignore
+		case cmd == PingMessage:
+			c.Pings <- msg
+		case cmd == PingResponse:
+			c.Pongs <- msg
+		}
+	case PingCommand:
+		err = c.pingHandler(e, now)
 	}
 
-	// Complete message
-	msg.Room = room
-	msg.Received = now
-	log.Debugf("Received %s message with ID %q from %q", msg.Kind, msg.ID, e.RoomID)
-
-	switch {
-	case msg.Kind == PingMessage:
-		c.Pings <- msg
-	case msg.Kind == PingResponse:
-		c.Pongs <- msg
+	if err != nil {
+		log.Errorf("Error sending %q response: %s", cmd, err)
 	}
 }
 
-func (c *Client) parseMessage(e *matrix.Event) *ping.Message {
-	// Ignore message if it has no body
-	text, ok := e.Body()
+func (c *Client) parseMessage(e *matrix.Event, received time.Time) *ping.Message {
+	// Ignore message if not received in the configured Rooms
+	room, ok := c.Rooms[e.RoomID]
 	if !ok {
+		log.Debugf("Ignoring message %q from unknown room %q", e.ID, e.RoomID)
 		return nil
 	}
 
 	// Ignore message if not all components are available
+	text, _ := e.Body()
 	parts := strings.Split(text, " ")
 	if len(parts) < 3 {
 		return nil
@@ -61,10 +71,12 @@ func (c *Client) parseMessage(e *matrix.Event) *ping.Message {
 
 	// Assemble message
 	return &ping.Message{
-		Kind:   parts[0],
-		ID:     parts[1],
-		Sent:   time.Unix(0, ts),
-		Matrix: time.Unix(0, e.Timestamp*1e6),
+		Kind:     parts[0],
+		ID:       parts[1],
+		Sent:     time.Unix(0, ts),
+		Matrix:   time.Unix(0, e.Timestamp*1e6),
+		Room:     room,
+		Received: received,
 	}
 }
 
