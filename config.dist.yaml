@@ -4,6 +4,7 @@ matrix:
   homeserver: "https://matrix.org"
   user: "@???:matrix.org"
   token: <secret>
+  # These rooms are used for active measurements to IRC.
   rooms:
     example: "!xxx:example.com"
 
