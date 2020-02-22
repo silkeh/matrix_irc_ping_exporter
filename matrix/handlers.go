@@ -39,6 +39,11 @@ func (c *Client) messageHandler(e *matrix.Event) {
 			c.Pongs <- msg
 		}
 	case PingCommand:
+		// Ignore notice messages
+		if t, ok := e.MessageType(); ok && t == "m.notice" {
+			log.Debugf("Ignoring notice message %q from %q", e.ID, e.RoomID)
+			return
+		}
 		err = c.pingHandler(e, now)
 	}
 
