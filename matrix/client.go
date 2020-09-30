@@ -15,6 +15,12 @@ const (
 
 	// PingResponse contains the expected response prefix to a ping message
 	PingResponse = "pong"
+
+	// PingCommand is the prefix for a ping command
+	PingCommand = "!ping"
+
+	// HTMLFormat is the HTML format used for HTML formatted messages
+	HTMLFormat = "org.matrix.custom.html"
 )
 
 // Client represents a Matrix Client that can be used as a ping sender.
