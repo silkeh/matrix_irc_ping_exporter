@@ -5,7 +5,7 @@ import (
 
 	"github.com/silkeh/matrix_irc_ping_exporter/irc"
 	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Config is used for the main configuration
