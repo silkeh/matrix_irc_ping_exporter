@@ -3,13 +3,14 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"github.com/silkeh/matrix_irc_ping_exporter/ping"
 	"net/http"
 	"time"
 
-	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
-	"github.com/silkeh/matrix_irc_ping_exporter/util"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
+	"github.com/silkeh/matrix_irc_ping_exporter/ping"
+	"github.com/silkeh/matrix_irc_ping_exporter/util"
 )
 
 const idSize = 8
@@ -112,6 +113,7 @@ func (e *Exporter) getDelays(ids map[string]time.Time) (delays map[string]*ping.
 
 	// Check for incoming messages and return when done,
 	// or when the timeout is reached.
+	pingCount := 0
 	pongCount := 0
 	for {
 		select {
@@ -126,8 +128,15 @@ func (e *Exporter) getDelays(ids map[string]time.Time) (delays map[string]*ping.
 			// Store message as ping
 			msg.Sent = ts
 			delays[msg.Room].Ping = msg
+
 			log.Debugf("Received ping for %s with Matrix delay of %s",
 				msg.Room, msg.ToMatrix())
+
+			// Stop when everything has been received
+			pingCount++
+			if pingCount == len(e.Rooms) && pongCount == len(e.Rooms) {
+				return
+			}
 
 		case msg := <-e.Pongs:
 			// Check if this is a ping we sent
@@ -138,12 +147,13 @@ func (e *Exporter) getDelays(ids map[string]time.Time) (delays map[string]*ping.
 
 			// Store message as pong
 			delays[msg.Room].Pong = msg
-			log.Debugf("Received response for %s with RTT of %s",
-				msg.Room, delays[msg.Room].RTT())
+
+			log.Debugf("Received pong for %s with total delay of %s",
+				msg.Room, msg.Total())
 
 			// Stop when everything has been received
 			pongCount++
-			if pongCount == len(e.Rooms) {
+			if pingCount == len(e.Rooms) && pongCount == len(e.Rooms) {
 				return
 			}
 

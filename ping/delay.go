@@ -1,6 +1,8 @@
 package ping
 
-import "time"
+import (
+	"time"
+)
 
 // Message represents a ping or pong message.
 // It is sent from a client, arrives on matrix, and is received by another client.
