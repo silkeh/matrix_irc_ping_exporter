@@ -12,22 +12,13 @@ import (
 	"github.com/silkeh/matrix_irc_ping_exporter/ping"
 )
 
-func parseMessage(e *event.Event) (*event.MessageEventContent, bool) {
-	err := e.Content.ParseRaw(event.EventMessage)
-	if err != nil {
-		return &event.MessageEventContent{}, false
-	}
-
-	return e.Content.AsMessage(), true
-}
-
 // messageHandler handles incoming messages
 func (c *Client) messageHandler(ctx context.Context, e *event.Event) {
 	now := time.Now()
 
 	// Ignore message if it has no body
-	msg, ok := parseMessage(e)
-	if !ok || msg.Body == "" {
+	msg := e.Content.AsMessage()
+	if msg.Body == "" {
 		slog.Debug("Ignoring message", "message_id", e.ID, "room_id", e.RoomID)
 		return
 	}
@@ -72,9 +63,10 @@ func (c *Client) parseMessage(e *event.Event, received time.Time) *ping.Message 
 	}
 
 	// Ignore message if not all components are available
-	msg, _ := parseMessage(e)
+	msg := e.Content.AsMessage()
 	parts := strings.Split(msg.Body, " ")
 	if len(parts) < 3 {
+		slog.Debug("Invalid message", "event_id", e.ID, "room_id", e.RoomID, "parts", parts)
 		return nil
 	}
 

@@ -74,6 +74,7 @@ func NewClient(config *Config) (c *Client, err error) {
 
 	// Copy a pointer to the syncer for easy access
 	c.Syncer = c.Client.Syncer.(*matrix.DefaultSyncer)
+	c.Syncer.OnSync(c.Client.DontProcessOldEvents)
 
 	// Register sync/message handler
 	c.Syncer.OnEventType(event.NewEventType("m.room.message"), c.messageHandler)
@@ -91,7 +92,7 @@ func NewClient(config *Config) (c *Client, err error) {
 
 // SendPing sends a ping message
 func (c *Client) SendPing(ctx context.Context, roomID id.RoomID, pingID string, ts time.Time) (*matrix.RespSendEvent, error) {
-	slog.Debug("Sending ping", "ping_id", pingID, "room_id", pingID, roomID)
+	slog.Debug("Sending ping", "ping_id", pingID, "room_id", roomID)
 
 	return c.SendText(ctx, roomID, fmt.Sprintf("%s %s %d", PingMessage, pingID, ts.UnixNano()))
 }

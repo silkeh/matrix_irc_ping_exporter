@@ -86,8 +86,7 @@ func (c *Client) pingHandler(ctx context.Context, e *event.Event, received time.
 }
 
 func getArgs(e *event.Event, n int) []string {
-	msg, _ := parseMessage(e)
-	return strings.SplitN(msg.Body, " ", n+1)[1:]
+	return strings.SplitN(e.Content.AsMessage().Body, " ", n+1)[1:]
 }
 
 func formatDuration(d time.Duration) string {

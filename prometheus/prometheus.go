@@ -43,7 +43,6 @@ func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	ids, err := e.sendPings(ctx)
 	if err != nil {
 		slog.Warn("Error sending pings", "err", err)
-		return
 	}
 
 	slog.Debug("Pings sent, getting delays")
