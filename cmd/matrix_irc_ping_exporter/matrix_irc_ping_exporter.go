@@ -5,16 +5,13 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
+	"github.com/silkeh/matrix_irc_ping_exporter/internal/log"
 	"github.com/silkeh/matrix_irc_ping_exporter/irc"
 	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 	"github.com/silkeh/matrix_irc_ping_exporter/prometheus"
 )
 
-var (
-	ircClients = make(map[string]*irc.Client)
-)
+var ircClients = make(map[string]*irc.Client)
 
 func main() {
 	var addr, configFile, logLevel string
@@ -26,23 +23,20 @@ func main() {
 	flag.DurationVar(&pingTimeout, "timeout", 60*time.Second, "Ping timeout")
 	flag.Parse()
 
-	// Set log level
-	lvl, err := log.ParseLevel(logLevel)
-	if err != nil {
-		log.Fatalf("Invalid loglevel %q: %s", logLevel, lvl)
+	if err := log.Setup(logLevel); err != nil {
+		log.Fatal("Invalid loglevel", "level", logLevel, "err", err)
 	}
-	log.SetLevel(lvl)
 
 	// Load configuration
 	config, err := loadConfig(configFile)
 	if err != nil {
-		log.Fatalf("Error loading config file %s: %s", configFile, err)
+		log.Fatal("Error loading config file", "path", configFile, "err", err)
 	}
 
 	// Create and start a Matrix client
 	client, err := matrix.NewClient(config.Matrix)
 	if err != nil {
-		log.Fatalf("Error connecting to Matrix homeserver: %s", err)
+		log.Fatal("Error connecting to Matrix homeserver", "err", err)
 	}
 	go client.Sync()
 
@@ -50,7 +44,7 @@ func main() {
 	for n, conf := range config.IRC {
 		ircClients[n], err = irc.NewClient(conf)
 		if err != nil {
-			log.Fatalf("Error connecting to IRC server %s: %s", conf.Server, err)
+			log.Fatal("Error connecting to IRC server", "url", conf.Server, "err", err)
 		}
 		go ircClients[n].Loop()
 	}
@@ -60,5 +54,5 @@ func main() {
 
 	// Create HTTP server
 	http.HandleFunc("/metrics", exporter.MetricsHandler)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Fatal("Listen error", "err", http.ListenAndServe(addr, nil))
 }

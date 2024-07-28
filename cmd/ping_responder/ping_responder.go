@@ -4,8 +4,8 @@ import (
 	"flag"
 	"strings"
 
+	"github.com/silkeh/matrix_irc_ping_exporter/internal/log"
 	"github.com/silkeh/matrix_irc_ping_exporter/irc"
-	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -20,17 +20,14 @@ func main() {
 	flag.BoolVar(&config.SSL, "ssl", false, "Use SSL for this connection")
 	flag.Parse()
 
-	// Set log level
-	lvl, err := log.ParseLevel(logLevel)
-	if err != nil {
-		log.Fatalf("Invalid loglevel %q: %s", logLevel, lvl)
+	if err := log.Setup(logLevel); err != nil {
+		log.Fatal("Invalid loglevel", "level", logLevel, "err", err)
 	}
-	log.SetLevel(lvl)
 
 	config.Channels = strings.Split(channelList, ",")
 	client, err := irc.NewClient(&config)
 	if err != nil {
-		log.Fatalf("Error connecting to %s: %s", config.Server, err)
+		log.Fatal("Error connecting to IRC server", "url", config.Server, "err", err)
 	}
 	client.Loop()
 }

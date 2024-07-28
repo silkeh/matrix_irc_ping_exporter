@@ -2,6 +2,7 @@ package matrix
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -9,8 +10,6 @@ import (
 	"maunium.net/go/mautrix/event"
 
 	"github.com/silkeh/matrix_irc_ping_exporter/ping"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func parseMessage(e *event.Event) (*event.MessageEventContent, bool) {
@@ -29,14 +28,14 @@ func (c *Client) messageHandler(ctx context.Context, e *event.Event) {
 	// Ignore message if it has no body
 	msg, ok := parseMessage(e)
 	if !ok || msg.Body == "" {
-		log.Debugf("Ignoring message %q without body from %q", e.ID, e.RoomID)
+		slog.Debug("Ignoring message", "message_id", e.ID, "room_id", e.RoomID)
 		return
 	}
 
 	// Get command from body
 	cmd := strings.SplitN(msg.Body, " ", 2)[0]
 
-	log.Debugf("Received %q message from %q", cmd, e.RoomID)
+	slog.Debug("Received message", "cmd", cmd, "room_id", e.RoomID)
 
 	var err error
 	switch cmd {
@@ -53,14 +52,14 @@ func (c *Client) messageHandler(ctx context.Context, e *event.Event) {
 	case PingCommand:
 		// Ignore notice messages
 		if msg.MsgType == event.MsgNotice {
-			log.Debugf("Ignoring notice message %q from %q", e.ID, e.RoomID)
+			slog.Debug("Ignoring notice message", "event_id", e.ID, "room_id", e.RoomID)
 			return
 		}
 		err = c.pingHandler(ctx, e, now)
 	}
 
 	if err != nil {
-		log.Errorf("Error sending %q response: %s", cmd, err)
+		slog.Error("Error sending response", "cmd", cmd, "err", err)
 	}
 }
 
@@ -68,7 +67,7 @@ func (c *Client) parseMessage(e *event.Event, received time.Time) *ping.Message 
 	// Ignore message if not received in the configured Rooms
 	room, ok := c.Rooms[e.RoomID]
 	if !ok {
-		log.Debugf("Ignoring message %q from unknown room %q", e.ID, e.RoomID)
+		slog.Debug("Ignoring message", "event_id", e.ID, "room_id", e.RoomID)
 		return nil
 	}
 
@@ -82,7 +81,7 @@ func (c *Client) parseMessage(e *event.Event, received time.Time) *ping.Message 
 	// Parse timestamp
 	ts, err := strconv.ParseInt(parts[2], 0, 64)
 	if err != nil {
-		log.Infof("Received pong with invalid time: %s", msg.Body)
+		slog.Info("Received pong with invalid time", "body", msg.Body)
 		return nil
 	}
 
@@ -102,7 +101,7 @@ func (c *Client) Sync() {
 	for {
 		err := c.Client.Sync()
 		if err != nil {
-			log.Errorf("Sync error: %s", err)
+			slog.Error("Sync error", "err", err)
 		}
 	}
 }

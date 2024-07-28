@@ -5,7 +5,6 @@ go 1.21
 toolchain go1.22.5
 
 require (
-	github.com/sirupsen/logrus v1.9.3
 	github.com/thoj/go-ircevent v0.0.0-20210723090443-73e444401d64
 	gopkg.in/sorcix/irc.v2 v2.0.0-20200812151606-3f15758ea8c7
 	gopkg.in/yaml.v3 v3.0.1

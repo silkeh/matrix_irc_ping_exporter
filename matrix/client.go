@@ -3,6 +3,7 @@ package matrix
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"maunium.net/go/mautrix/event"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/silkeh/matrix_irc_ping_exporter/ping"
 
-	log "github.com/sirupsen/logrus"
 	matrix "maunium.net/go/mautrix"
 )
 
@@ -91,7 +91,7 @@ func NewClient(config *Config) (c *Client, err error) {
 
 // SendPing sends a ping message
 func (c *Client) SendPing(ctx context.Context, roomID id.RoomID, pingID string, ts time.Time) (*matrix.RespSendEvent, error) {
-	log.Debugf("Sending ping with ID %q to %q", pingID, roomID)
+	slog.Debug("Sending ping", "ping_id", pingID, "room_id", pingID, roomID)
 
 	return c.SendText(ctx, roomID, fmt.Sprintf("%s %s %d", PingMessage, pingID, ts.UnixNano()))
 }
