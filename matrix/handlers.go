@@ -1,28 +1,40 @@
 package matrix
 
 import (
-	"github.com/silkeh/matrix_irc_ping_exporter/ping"
+	"context"
 	"strconv"
 	"strings"
 	"time"
 
-	matrix "github.com/matrix-org/gomatrix"
+	"maunium.net/go/mautrix/event"
+
+	"github.com/silkeh/matrix_irc_ping_exporter/ping"
+
 	log "github.com/sirupsen/logrus"
 )
 
+func parseMessage(e *event.Event) (*event.MessageEventContent, bool) {
+	err := e.Content.ParseRaw(event.EventMessage)
+	if err != nil {
+		return &event.MessageEventContent{}, false
+	}
+
+	return e.Content.AsMessage(), true
+}
+
 // messageHandler handles incoming messages
-func (c *Client) messageHandler(e *matrix.Event) {
+func (c *Client) messageHandler(ctx context.Context, e *event.Event) {
 	now := time.Now()
 
 	// Ignore message if it has no body
-	body, ok := e.Body()
-	if !ok {
+	msg, ok := parseMessage(e)
+	if !ok || msg.Body == "" {
 		log.Debugf("Ignoring message %q without body from %q", e.ID, e.RoomID)
 		return
 	}
 
 	// Get command from body
-	cmd := strings.SplitN(body, " ", 2)[0]
+	cmd := strings.SplitN(msg.Body, " ", 2)[0]
 
 	log.Debugf("Received %q message from %q", cmd, e.RoomID)
 
@@ -40,11 +52,11 @@ func (c *Client) messageHandler(e *matrix.Event) {
 		}
 	case PingCommand:
 		// Ignore notice messages
-		if t, ok := e.MessageType(); ok && t == "m.notice" {
+		if msg.MsgType == event.MsgNotice {
 			log.Debugf("Ignoring notice message %q from %q", e.ID, e.RoomID)
 			return
 		}
-		err = c.pingHandler(e, now)
+		err = c.pingHandler(ctx, e, now)
 	}
 
 	if err != nil {
@@ -52,7 +64,7 @@ func (c *Client) messageHandler(e *matrix.Event) {
 	}
 }
 
-func (c *Client) parseMessage(e *matrix.Event, received time.Time) *ping.Message {
+func (c *Client) parseMessage(e *event.Event, received time.Time) *ping.Message {
 	// Ignore message if not received in the configured Rooms
 	room, ok := c.Rooms[e.RoomID]
 	if !ok {
@@ -61,8 +73,8 @@ func (c *Client) parseMessage(e *matrix.Event, received time.Time) *ping.Message
 	}
 
 	// Ignore message if not all components are available
-	text, _ := e.Body()
-	parts := strings.Split(text, " ")
+	msg, _ := parseMessage(e)
+	parts := strings.Split(msg.Body, " ")
 	if len(parts) < 3 {
 		return nil
 	}
@@ -70,7 +82,7 @@ func (c *Client) parseMessage(e *matrix.Event, received time.Time) *ping.Message
 	// Parse timestamp
 	ts, err := strconv.ParseInt(parts[2], 0, 64)
 	if err != nil {
-		log.Infof("Received pong with invalid time: %s", text)
+		log.Infof("Received pong with invalid time: %s", msg.Body)
 		return nil
 	}
 

@@ -1,12 +1,17 @@
 package matrix
 
 import (
+	"context"
 	"fmt"
-	"github.com/silkeh/matrix_irc_ping_exporter/ping"
 	"time"
 
-	matrix "github.com/matrix-org/gomatrix"
+	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/id"
+
+	"github.com/silkeh/matrix_irc_ping_exporter/ping"
+
 	log "github.com/sirupsen/logrus"
+	matrix "maunium.net/go/mautrix"
 )
 
 const (
@@ -27,9 +32,9 @@ const (
 type Client struct {
 	*matrix.Client
 	Syncer       *matrix.DefaultSyncer
-	Rooms        map[string]string
+	Rooms        map[id.RoomID]string
 	Pings, Pongs chan *ping.Message
-	messageType  string
+	messageType  event.MessageType
 }
 
 // Config is used for the configuration of the Matrix client
@@ -37,32 +42,32 @@ type Config struct {
 	Homeserver  string
 	User        string
 	Token       string
-	MessageType string
-	Rooms       map[string]string
+	MessageType event.MessageType
+	Rooms       map[string]id.RoomID
 }
 
 // Message represents a Matrix Message
 type Message struct {
-	MsgType string `json:"msgtype"`
-	Body    string `json:"body"`
+	MsgType event.MessageType `json:"msgtype"`
+	Body    string            `json:"body"`
 }
 
 // NewClient returns a configured Matrix Client
 func NewClient(config *Config) (c *Client, err error) {
 	c = &Client{
 		messageType: config.MessageType,
-		Rooms:       make(map[string]string, len(config.Rooms)),
+		Rooms:       make(map[id.RoomID]string, len(config.Rooms)),
 		Pings:       make(chan *ping.Message, 25),
 		Pongs:       make(chan *ping.Message, 25),
 	}
 
 	// Add Rooms to map with id/name swapped
-	for name, id := range config.Rooms {
-		c.Rooms[id] = name
+	for name, roomID := range config.Rooms {
+		c.Rooms[roomID] = name
 	}
 
 	// Create the actual Matrix client
-	c.Client, err = matrix.NewClient(config.Homeserver, config.User, config.Token)
+	c.Client, err = matrix.NewClient(config.Homeserver, id.UserID(config.User), config.Token)
 	if err != nil {
 		return
 	}
@@ -71,11 +76,11 @@ func NewClient(config *Config) (c *Client, err error) {
 	c.Syncer = c.Client.Syncer.(*matrix.DefaultSyncer)
 
 	// Register sync/message handler
-	c.Syncer.OnEventType("m.room.message", c.messageHandler)
+	c.Syncer.OnEventType(event.NewEventType("m.room.message"), c.messageHandler)
 
 	// Join Rooms
 	if len(config.Rooms) > 0 {
-		err = c.JoinRooms(config.Rooms)
+		err = c.JoinRooms(context.Background(), config.Rooms)
 		if err != nil {
 			return
 		}
@@ -85,15 +90,15 @@ func NewClient(config *Config) (c *Client, err error) {
 }
 
 // SendPing sends a ping message
-func (c *Client) SendPing(roomID, pingID string, ts time.Time) (*matrix.RespSendEvent, error) {
+func (c *Client) SendPing(ctx context.Context, roomID id.RoomID, pingID string, ts time.Time) (*matrix.RespSendEvent, error) {
 	log.Debugf("Sending ping with ID %q to %q", pingID, roomID)
 
-	return c.SendText(roomID, fmt.Sprintf("%s %s %d", PingMessage, pingID, ts.UnixNano()))
+	return c.SendText(ctx, roomID, fmt.Sprintf("%s %s %d", PingMessage, pingID, ts.UnixNano()))
 }
 
 // SendText sends a plain text message
-func (c *Client) SendText(roomID, text string) (*matrix.RespSendEvent, error) {
-	return c.SendMessageEvent(roomID, "m.room.message",
+func (c *Client) SendText(ctx context.Context, roomID id.RoomID, text string) (*matrix.RespSendEvent, error) {
+	return c.SendMessageEvent(ctx, roomID, event.EventMessage,
 		Message{
 			MsgType: c.messageType,
 			Body:    text,
@@ -102,9 +107,9 @@ func (c *Client) SendText(roomID, text string) (*matrix.RespSendEvent, error) {
 }
 
 // JoinRooms joins a map names to room IDs/aliases
-func (c *Client) JoinRooms(roomList map[string]string) error {
+func (c *Client) JoinRooms(ctx context.Context, roomList map[string]id.RoomID) error {
 	for _, r := range roomList {
-		_, err := c.JoinRoom(r, "", nil)
+		_, err := c.JoinRoom(ctx, string(r), "", nil)
 		if err != nil {
 			return err
 		}

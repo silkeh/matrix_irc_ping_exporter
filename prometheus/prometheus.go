@@ -7,6 +7,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"maunium.net/go/mautrix/id"
 
 	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 	"github.com/silkeh/matrix_irc_ping_exporter/ping"
@@ -18,12 +19,12 @@ const idSize = 8
 // Exporter is a Prometheus exporter for Matrix-IRC ping metrics.
 type Exporter struct {
 	*matrix.Client
-	Rooms   map[string]string
+	Rooms   map[string]id.RoomID
 	Timeout time.Duration
 }
 
-// NewExporter returns a configured ping metrics exporter..
-func NewExporter(client *matrix.Client, rooms map[string]string, timeout time.Duration) *Exporter {
+// NewExporter returns a configured ping metrics exporter.
+func NewExporter(client *matrix.Client, rooms map[string]id.RoomID, timeout time.Duration) *Exporter {
 	return &Exporter{
 		Client:  client,
 		Rooms:   rooms,
@@ -33,11 +34,14 @@ func NewExporter(client *matrix.Client, rooms map[string]string, timeout time.Du
 
 // MetricsHandler is an HTTP handler that collects metrics.
 func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), e.Timeout)
+	defer cancel()
+
 	// Send ping to all rooms
-	ids := e.sendPings()
+	ids := e.sendPings(ctx)
 
 	// Read all delays
-	delays := e.getDelays(ids)
+	delays := e.getDelays(ctx, ids)
 
 	// Write metrics
 	// TODO: use proper exporter functionality for this
@@ -78,7 +82,7 @@ func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // sendPings sends pings to all configured rooms and returns a map with ping IDs
-func (e *Exporter) sendPings() (ids map[string]time.Time) {
+func (e *Exporter) sendPings(ctx context.Context) (ids map[string]time.Time) {
 	log.Infof("Sending %v pings", len(e.Rooms))
 
 	ids = make(map[string]time.Time, len(e.Rooms))
@@ -89,7 +93,7 @@ func (e *Exporter) sendPings() (ids map[string]time.Time) {
 		ids[id] = ts
 
 		// Try to send a ping message
-		_, err := e.SendPing(roomID, id, ts)
+		_, err := e.SendPing(ctx, roomID, id, ts)
 		if err != nil {
 			log.Warnf("Error sending ping to room %s: %s", roomID, err)
 		}
@@ -98,7 +102,7 @@ func (e *Exporter) sendPings() (ids map[string]time.Time) {
 }
 
 // getDelays returns the sent delays.
-func (e *Exporter) getDelays(ids map[string]time.Time) (delays map[string]*ping.Delay) {
+func (e *Exporter) getDelays(ctx context.Context, ids map[string]time.Time) (delays map[string]*ping.Delay) {
 	log.Debugf("Waiting for replies, timeout in %v", e.Timeout)
 
 	// Initialise delays map with nil pointers
@@ -106,10 +110,6 @@ func (e *Exporter) getDelays(ids map[string]time.Time) (delays map[string]*ping.
 	for n := range e.Rooms {
 		delays[n] = new(ping.Delay)
 	}
-
-	// Run the rest with a timeout
-	ctx, cancel := context.WithTimeout(context.Background(), e.Timeout)
-	defer cancel()
 
 	// Check for incoming messages and return when done,
 	// or when the timeout is reached.

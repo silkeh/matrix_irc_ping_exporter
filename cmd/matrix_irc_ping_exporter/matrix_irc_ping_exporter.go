@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/silkeh/matrix_irc_ping_exporter/irc"
 	"github.com/silkeh/matrix_irc_ping_exporter/matrix"
 	"github.com/silkeh/matrix_irc_ping_exporter/prometheus"
-	log "github.com/sirupsen/logrus"
 )
 
 var (

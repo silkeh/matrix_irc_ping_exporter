@@ -1,13 +1,15 @@
 package matrix
 
 import (
+	"context"
 	"fmt"
 	"html"
 	"strings"
 	"text/template"
 	"time"
 
-	matrix "github.com/matrix-org/gomatrix"
+	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/id"
 )
 
 const (
@@ -25,74 +27,74 @@ func init() {
 }
 
 type pingEvent struct {
-	*matrix.Event
+	*event.Event
 	Message  string
 	Duration time.Duration
 }
 
 type pongData struct {
-	Milliseconds int64  `json:"ms"`
-	From         string `json:"from"`
-	Ping         string `json:"ping"`
+	Milliseconds int64      `json:"ms"`
+	From         string     `json:"from"`
+	Ping         id.EventID `json:"ping"`
 }
 
 type pingMessage struct {
-	matrix.HTMLMessage
+	event.MessageEventContent
 	Pong pongData `json:"pong"`
 }
 
-func (c *Client) pingHandler(e *matrix.Event, received time.Time) error {
-	event := &pingEvent{Event: e}
+func (c *Client) pingHandler(ctx context.Context, e *event.Event, received time.Time) error {
+	ev := &pingEvent{Event: e}
 
 	// Set message from body
 	args := getArgs(e, 1)
 	if len(args) == 0 {
-		event.Message = "took"
+		ev.Message = "took"
 	} else {
 		body := args[0]
 		if len(body) > 32 {
 			body = body[:32]
 		}
-		event.Message = `"` + body + `" took`
+		ev.Message = `"` + body + `" took`
 	}
 
 	// Calculate time difference
-	event.Duration = received.Sub(time.Unix(0, event.Timestamp*1e6))
+	ev.Duration = received.Sub(time.Unix(0, ev.Timestamp*1e6))
 
 	// Create response
 	var plain, formatted strings.Builder
-	_ = pingTemplate.ExecuteTemplate(&plain, "text", event)
-	_ = pingTemplate.ExecuteTemplate(&formatted, "html", event)
+	_ = pingTemplate.ExecuteTemplate(&plain, "text", ev)
+	_ = pingTemplate.ExecuteTemplate(&formatted, "html", ev)
 
 	// Create response
 	response := &pingMessage{
-		HTMLMessage: matrix.HTMLMessage{
+		MessageEventContent: event.MessageEventContent{
 			MsgType:       c.messageType,
 			Body:          html.EscapeString(plain.String()),
 			Format:        HTMLFormat,
 			FormattedBody: formatted.String(),
 		},
 		Pong: pongData{
-			Milliseconds: event.Duration.Milliseconds(),
-			From: strings.SplitN(event.Sender, ":", 2)[1],
-			Ping: event.ID,
+			Milliseconds: ev.Duration.Milliseconds(),
+			From:         ev.Sender.Homeserver(),
+			Ping:         ev.ID,
 		},
 	}
 
-	_, err := c.SendMessageEvent(e.RoomID, "m.room.message", response)
+	_, err := c.SendMessageEvent(ctx, e.RoomID, event.EventMessage, response)
 	return err
 }
 
-func getArgs(e *matrix.Event, n int) []string {
-	body, _ := e.Body()
-	return strings.SplitN(body, " ", n+1)[1:]
+func getArgs(e *event.Event, n int) []string {
+	msg, _ := parseMessage(e)
+	return strings.SplitN(msg.Body, " ", n+1)[1:]
 }
 
 func formatDuration(d time.Duration) string {
 	switch {
-	case d < 10 * time.Second:
+	case d < 10*time.Second:
 		return fmt.Sprintf("%d ms", d.Milliseconds())
-	case d < 1 * time.Minute:
+	case d < 1*time.Minute:
 		return fmt.Sprintf("%.1f second", d.Seconds())
 	default:
 		return fmt.Sprintf("%6s", d.Truncate(time.Second))
