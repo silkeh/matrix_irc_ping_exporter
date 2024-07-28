@@ -34,14 +34,24 @@ func NewExporter(client *matrix.Client, rooms map[string]id.RoomID, timeout time
 
 // MetricsHandler is an HTTP handler that collects metrics.
 func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Handling metrics request", "timeout", e.Timeout)
+
 	ctx, cancel := context.WithTimeout(r.Context(), e.Timeout)
 	defer cancel()
 
 	// Send ping to all rooms
-	ids := e.sendPings(ctx)
+	ids, err := e.sendPings(ctx)
+	if err != nil {
+		slog.Warn("Error sending pings", "err", err)
+		return
+	}
+
+	slog.Debug("Pings sent, getting delays")
 
 	// Read all delays
 	delays := e.getDelays(ctx, ids)
+
+	slog.Debug("Got delays")
 
 	// Write metrics
 	// TODO: use proper exporter functionality for this
@@ -82,8 +92,8 @@ func (e *Exporter) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // sendPings sends pings to all configured rooms and returns a map with ping IDs
-func (e *Exporter) sendPings(ctx context.Context) (ids map[string]time.Time) {
-	slog.Info("Sending pings", "count", len(e.Rooms))
+func (e *Exporter) sendPings(ctx context.Context) (ids map[string]time.Time, err error) {
+	slog.Debug("Sending pings", "count", len(e.Rooms))
 
 	ids = make(map[string]time.Time, len(e.Rooms))
 	for _, roomID := range e.Rooms {
@@ -93,17 +103,20 @@ func (e *Exporter) sendPings(ctx context.Context) (ids map[string]time.Time) {
 		ids[id] = ts
 
 		// Try to send a ping message
-		_, err := e.SendPing(ctx, roomID, id, ts)
+		_, err = e.SendPing(ctx, roomID, id, ts)
 		if err != nil {
-			slog.Warn("Error sending ping", "room_id", roomID, "err", err)
+			return nil, fmt.Errorf("send ping to %q: %w", roomID, err)
 		}
 	}
+
+	slog.Debug("Sent pings", "count", len(e.Rooms))
+
 	return
 }
 
 // getDelays returns the sent delays.
 func (e *Exporter) getDelays(ctx context.Context, ids map[string]time.Time) (delays map[string]*ping.Delay) {
-	slog.Debug("Waiting for replies", "timeout", e.Timeout)
+	slog.Debug("Waiting for replies")
 
 	// Initialise delays map with nil pointers
 	delays = make(map[string]*ping.Delay, len(e.Rooms))

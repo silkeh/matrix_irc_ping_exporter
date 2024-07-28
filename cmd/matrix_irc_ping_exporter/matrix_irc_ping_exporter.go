@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -26,6 +27,8 @@ func main() {
 	if err := log.Setup(logLevel); err != nil {
 		log.Fatal("Invalid loglevel", "level", logLevel, "err", err)
 	}
+
+	slog.Info("Starting...")
 
 	// Load configuration
 	config, err := loadConfig(configFile)
@@ -53,6 +56,7 @@ func main() {
 	exporter := prometheus.NewExporter(client, config.Matrix.Rooms, pingTimeout)
 
 	// Create HTTP server
+	slog.Info("Listening", "addr", addr)
 	http.HandleFunc("/metrics", exporter.MetricsHandler)
 	log.Fatal("Listen error", "err", http.ListenAndServe(addr, nil))
 }
